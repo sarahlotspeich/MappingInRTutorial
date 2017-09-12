@@ -150,6 +150,12 @@ Once the shapefile has been formatted appropriately, we can utilize our knowledg
 (AustinTX.map <- ggplot() + geom_polygon(data = AustinTX.df, aes(x = long, y = lat, group=group), fill = "white", col="black"))
 ```
 
+By adding `+ coord_equal(ratio = 1)` to the end, we can fix the skew of the plot. 
+
+```{r}
+(AustinTX.map <- AustinTX.map + coord_equal(ratio=1))
+```
+
 Use `ggtitle()` to add a main title describing your map. 
 
 ```{r}
@@ -161,12 +167,6 @@ We will need the additional `ggsn` package to add north arrows and map scales fo
 ```{r}
 (AustinTX.map <- AustinTX.map + north(AustinTX.df, location = "topleft")) 
 (AustinTX.map <- AustinTX.map + scalebar(AustinTX.df, location = "bottomright", dist = 10, dd2km = TRUE, model = 'WGS84', st.size=2.5))
-```
-
-By adding `+ coord_equal(ratio = 1)` to the end, we can fix the skew of the plot. 
-
-```{r}
-(AustinTX.map <- AustinTX.map + coord_equal(ratio=1))
 ```
 
 To make this look less like a plot and more like a traditional map, we can add the following chunk of to the end of our plot: 
