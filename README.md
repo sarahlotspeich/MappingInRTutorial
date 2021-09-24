@@ -1,6 +1,6 @@
 # Introduction to geocoding, calculating distances, and map-making in `R`
-Files and datasets for R Ladies tutorial - 12 Sept 2017
-Sarah Lotspeich
+### Files and datasets for R Ladies tutorial - 12 Sept 2017
+### Sarah Lotspeich
 
 ## A few packages for spatial analysis and visualization in R
 
@@ -94,7 +94,7 @@ AustinPublicArt.gc <- read.csv("https://raw.githubusercontent.com/sarahlotspeich
 
 This is what is referred to as \underline{batch geocoding}. Now, the unfortunate truth is that we will rarely be able to successfully geocode an entire set of addresses due to either unforgiveable type-os or missing data. In our case, we were unable to precisely pinpoint the location of `r round((nrow(AustinPublicArt) - nrow(AustinPublicArt.gc))/nrow(AustinPublicArt),2)*100`$\%$ of the works of art. Excluding those that were unable to be geocoded leaves us with a subset of `r nrow(AustinPublicArt.gc)` works of art, and now that we have geocoded our addresses we are ready to build our first map! 
 
-#It all starts with a shapefile
+# It all starts with a shapefile
 
 Now that we have data that we're interested in visualizing on a map, we need a blank canvas. One option for this blank canvas is called a ["shapefile."](https://en.wikipedia.org/wiki/Shapefile) This is the same file type used for Geographic Information Systems (GIS) software, so I prefer it because there is an abundance of data available in this format. The first place I look for maps of the United States is the [U.S. Census Bureau.](https://www.census.gov/geo/maps-data/data/tiger-line.html)
 
@@ -201,7 +201,7 @@ $$d(i,j) = r \cdot \text{arccos}(\text{sin}(\text{lat}_i)\text{sin}(\text{lat}_j
   
 Which of these measures you choose might depend on the nature or scope of your project, but since our data set is reasonably manageable I thought we could experiment with all three. 
 
-##Using the `geosphere` package for Haversine Formula and Spherical Law of Cosines
+## Using the `geosphere` package for Haversine Formula and Spherical Law of Cosines
 
 The `geosphere` package contains functions `disthaversine()` and `distcosine()` to calculate the distance between either two vectors of latitude/ longitude coordinates or matrices with two columns for latitude/ longitude, using the Haversine Formula and Spherical Law of Cosines, respectively. 
 
@@ -241,7 +241,7 @@ The inputs for the `distCosine()` function are the same, and the calculations wi
 distCosine(AustinPublicArt.gc[1,9:10],  AustinPublicArt.gc[2,9:10], r = 3959)
 ```
 
-##Using the `gmapsdistance` package for travel times and distances based on road networks
+## Using the `gmapsdistance` package for travel times and distances based on road networks
 
 Depending on the focus of the spatial analysis, it may be more prudent to incorporate networks of roads and sidewalks to calculate distances or travel times directly rather than "as the crow flies" (the shortest possible distance between two points). With the gmapsdistance package this can be accomplished using the Google Maps API directly in R to utilize Google Maps data to calculate travel distances (output in meters) and times (output in seconds) by a variety of modes (walking, biking, driving, or taking public transportation), at different times of day, and under different traffic conditions ("pessimistic", "optimistic", "best guess"). 
 
@@ -317,7 +317,7 @@ Medicare <- read.csv("https://query.data.world/s/l6qwxpDqQw5RX8Urdo8G_hKq6P6i5a"
 head(Medicare)
 ```
 
-##Getting colorful with choropleth maps 
+## Getting colorful with choropleths 
 
 A choropleth is a map that shades geographic areas (counties, census blocks, urban areas, etc.) by their relative levels of a given attribute. Across the United States, we can use a choropleth to examine the relative per capita Medicare reimbursements by state. To do so, we will be go back to our US States shapefile and use the `tidy()` function to transform it to a `ggplot`-friendly data frame. 
 
