@@ -14,12 +14,8 @@ on top of static maps from various online sources (e.g Google Maps and Stamen Ma
   7.  [`gmapsdistance`](https://cran.r-project.org/web/packages/gmapsdistance/gmapsdistance.pdf): Get distance and travel time between two points from Google Maps. Four possible modes of transportation (bicycling, walking, driving and public transportation).
 
 ```{r, message=FALSE, warning=FALSE}
-library(ggmap)
-library(rgdal)
-library(ggplot2)
+library(magrittr)
 library(ggsn)
-library(broom)
-library(geosphere)
 library(gmapsdistance)
 library(wesanderson)
 ```
@@ -43,8 +39,17 @@ Before we begin, here are a few "best practices" when preparing addresses to be 
 ```{r, warning=FALSE, tidy=TRUE}
 AustinPublicArt <- read.csv("https://query.data.world/s/93ujuqzxbfjkwnda3y2p8mgv9", header=TRUE, stringsAsFactors=FALSE)
 colnames(AustinPublicArt) 
+## [1] "artist_full_name" "art_title"
+## [3] "art_location_name" "art_location_street_address"
+## [5] "art_location_city" "art_location_state"
+## [7] "art_location_zip"
 AustinPublicArt$art_full_address <- paste(AustinPublicArt$art_location_street_address,AustinPublicArt$art_location_city,AustinPublicArt$art_location_state,AustinPublicArt$art_location_zip, sep = " ")
-unique(AustinPublicArt$art_full_address) #let's see what we're working with here
+head(AustinPublicArt$art_full_address) #let's see what we're working with here
+##  [1] "Possum Point - North Bank at Shoal Creek; Austin TX 78701"
+##  [2] "2800  Star of Texas Rd.; Austin TX 78719"
+##  [3] "2505 Steck Ave.; Austin TX 78757"
+##  [4] "1143 Northwestern Ave.; Austin TX 78702"
+##  [5] "600 River Street; Austin TX 78701"
 ```
 
 ##Keys for cleaning addresses: all hail [`sub()` and `gsub()`](http://rfunction.com/archives/2354)
@@ -58,14 +63,20 @@ If you want to get rid of every occurrence of something, use:
   -   Use `gsub("What you don't want", "What you do want", "Where you want it")`
   
 ```{r, tidy=TRUE}
-AustinPublicArt$art_full_address <- gsub(";", "", AustinPublicArt$art_full_address) #get rid of special character ";" at the end of each address
-AustinPublicArt$art_full_address <- sub(".* - ", "", AustinPublicArt$art_full_address) #get rid of "Possum Point - " at the beginning
-AustinPublicArt$art_full_address <- gsub("NA", "", AustinPublicArt$art_full_address) #remove NA zipcodes
+AustinPublicArt %>% 
+  dplyr::mutate(art_full_address = gsub(";", "", art_full_address), #get rid of special character ";" at the end of each address
+                art_full_address = sub(".* - ", "", art_full_address), #get rid of "Possum Point - " at the beginning
+                art_full_address = gsub("NA", "", art_full_address) #remove NA zipcodes
+                ) -> AustinPublicArt
 ```
 
 Many geocoders exist today (both open-source and proprietary), but the basis is the same. The algorithm begins by taking a complete street address and breaking it down into its component parts. For example, if we wanted to geocode the Vanderbilt Biostatistics Department we would begin with 
 
-2525 West End Avenue, Nashville, TN 37203 $\rightarrow$ 2525 West End Avenue | Nashville | TN | 37203
+2525 West End Avenue, Nashville, TN 37203 
+
+and be broken down into
+
+2525 West End Avenue | Nashville | TN | 37203.
 
 The geocoder then works its way down the geographic hierarchy that you specify (depending on the scope of your data) to find increasingly more precise coordinates based on matching the address's: 
 
@@ -74,15 +85,15 @@ The geocoder then works its way down the geographic hierarchy that you specify (
   3.  Zip code
   4.  Street address
 
-Fortunately, the R community has blessed us with yet another package: `ggmap`! [`ggmap`](https://cran.r-project.org/web/packages/ggmap/ggmap.pdf) contains a quick function called `geocode()` -- tricky to remember, I know -- that will take in a string address and output the latitude and longitude coordinates utilizing the Google Maps API (`source = "google"`) or the Data Science Toolkit online (`source = "dsk"`). Let's try this function out on the second artwork in the data set (the first cannot be geocoded).
+Fortunately, the `R` community has blessed us with yet another package:[`ggmap`](https://cran.r-project.org/web/packages/ggmap/ggmap.pdf). The `ggmap` package contains a quick function called `geocode()` -- tricky to remember, I know -- that will take in a string address and output the latitude and longitude coordinates utilizing the Google Maps API (`source = "google"`) or the Data Science Toolkit online (`source = "dsk"`). Let's try this function out on the second artwork in the data set (the first cannot be geocoded).
 
 ```{r, message=TRUE, tidy=TRUE}
 #view second full address
 AustinPublicArt$art_full_address[2]
 #geocode second full address using Data Science Toolkit
-geocode(AustinPublicArt$art_full_address[2], source="dsk") 
+ggmap::geocode(AustinPublicArt$art_full_address[2], source="dsk") 
 #geocode second full address using Google Maps
-geocode(AustinPublicArt$art_full_address[2], source="google") 
+ggmap::geocode(AustinPublicArt$art_full_address[2], source="google") 
 ```
 
 We can see that the geocoded addresses from each source are quite close. I have not (yet) found much information differentiating between the two, so for now I chose to proceed with Google Maps. It took around 3 minutes for the `r nrow(AustinPublicArt)` addresses to geocode, so to save time an updated csv with the latitude and longitude can be found [here](https://raw.githubusercontent.com/sarahlotspeich/MappingInRTutorial/master/AustinPublicArtWithLatLong.csv). 
@@ -98,10 +109,10 @@ This is what is referred to as \underline{batch geocoding}. Now, the unfortunate
 
 Now that we have data that we're interested in visualizing on a map, we need a blank canvas. One option for this blank canvas is called a ["shapefile."](https://en.wikipedia.org/wiki/Shapefile) This is the same file type used for Geographic Information Systems (GIS) software, so I prefer it because there is an abundance of data available in this format. The first place I look for maps of the United States is the [U.S. Census Bureau.](https://www.census.gov/geo/maps-data/data/tiger-line.html)
 
-Using the [`readOGR()`](https://www.rdocumentation.org/packages/rgdal/versions/1.2-8/topics/readOGR) function in the `rgdal` package, we can read in the shapefile we've downloaded as a usable spatial layer. 
+Using the [`rgdal::readOGR()`](https://www.rdocumentation.org/packages/rgdal/versions/1.2-8/topics/readOGR) function, we can read in the shapefile we've downloaded as a usable spatial layer. 
 
 ```{r, warning=FALSE, message=FALSE, tidy=TRUE}
-UrbanAreasUS.shp <- readOGR(dsn = path.expand("tl_2016_us_uac10/tl_2016_us_uac10.shp"), layer="tl_2016_us_uac10")
+UrbanAreasUS.shp <- rgdal::readOGR(dsn = path.expand("tl_2016_us_uac10/tl_2016_us_uac10.shp"), layer="tl_2016_us_uac10")
 class(UrbanAreasUS.shp)
 ```
 
@@ -121,7 +132,7 @@ head(UrbanAreasUS.shp@data)
 head(data.frame(UrbanAreasUS.shp))
 ```
 
-By taking advantage of this data frame, we can focus our map on the Austin, TX urban area using our usual data subsetting techniques. Be careful not to select a subset of only the data frame, because if you lose the spatial polygon part R will not plot your map properly (i.e. as a map). 
+By taking advantage of this data frame, we can focus our map on the Austin, TX urban area using our usual data subsetting techniques. Be careful not to select a subset of only the data frame, because if you lose the spatial polygon part `R` will not plot your map properly (i.e. as a map). 
 
 ```{r, tidy=TRUE}
 UrbanAreasUS.shp@data[which(UrbanAreasUS.shp@data$NAME10 == "Austin, TX"),]
@@ -130,11 +141,10 @@ AustinTX.shp <- subset(UrbanAreasUS.shp, UrbanAreasUS.shp@data$NAME10 == "Austin
 
 ### Spatial data in `ggplot2`
 
-To map Austin in `ggplot2` we need to use the `tidy()` function in the `broom` package to convert the spatial polygon data frame to a traditional data frame. Previously, the `fortify()` function could be used for this, but this function is likely to become deprecated. 
+To map Austin in `ggplot2` we need to use the `broom::tidy()` function to convert the spatial polygon data frame to a traditional data frame.
 
 ```{r, tidy=TRUE}
 AustinTX.df <- tidy(AustinTX.shp, region = "NAME10") 
-#or AustinTX.df <- fortify(AustinTX.shp, region="NAME10")
 ```
 
 ### Creating Maps with `ggplot2`
@@ -142,6 +152,7 @@ AustinTX.df <- tidy(AustinTX.shp, region = "NAME10")
 Once the shapefile has been formatted appropriately, we can utilize our knowledge of the "grammar of graphics" to map the urban area for Austin, TX. Begin with the `geom_polygon()` function to plot the latitude and longitude coordinates for the outline of the Austin, TX urban area (`aes(x = long, y = lat)`) and use `group = group` in your aesthetic to tell `ggplot2` to treat this area as one polygon. Feel free to select your own `fill` color, and outline color, `col`. 
 
 ```{r, tidy=TRUE, fig.align="center"}
+library(ggplot2)
 (AustinTX.map <- ggplot() + geom_polygon(data = AustinTX.df, aes(x = long, y = lat, group=group), fill = "white", col="black"))
 ```
 
@@ -211,17 +222,18 @@ head(AustinPublicArt.gc[,9:10])
 
 #Input: lat/long coordinates of the 1st and 2nd works of art
 #Output: distance between 1st and 2nd works of art (in miles)
-distHaversine(AustinPublicArt.gc[1,9:10],  AustinPublicArt.gc[2,9:10], r = 3959)
+geosphere::distHaversine(AustinPublicArt.gc[1,9:10],  AustinPublicArt.gc[2,9:10], r = 3959)
 
 #Input: lat/long coordinates of the 1st vs. all other works of art
 #Output: distances between the 1st and all other works of art (in miles)
-distHaversine(AustinPublicArt.gc[1,9:10], AustinPublicArt.gc[-1,9:10], r = 3959)
+geosphere::distHaversine(AustinPublicArt.gc[1,9:10], AustinPublicArt.gc[-1,9:10], r = 3959)
 ```
 
 We can take the mean of this last command's output to calculate the average distance to other works of art for the first piece in the dataset (our proposed gauge of accessability). To find the average distance from each of the `r nrow(AustinPublicArt)` works of art, we can construct a distance matrix using the `distm()` function in `geosphere()` and then take the `colmeans()` of that matrix.
 
 ```{r, tidy=TRUE}
-DistanceMatrix.Haversine <- distm(AustinPublicArt.gc[,9:10], AustinPublicArt.gc[,9:10], distHaversine)*0.000621371 #convert km --> mi by multipying * 0.000621371
+#convert km --> mi by multipying * 0.000621371
+DistanceMatrix.Haversine <- geosphere::distm(AustinPublicArt.gc[,9:10], AustinPublicArt.gc[,9:10], distHaversine) * 0.000621371 
 DistanceMatrix.Haversine[1,] #Look at the first row of distance matrix output
 diag(DistanceMatrix.Haversine) <- NA #remove 0 values for distance b/t a work of art and itself
 AustinPublicArt.gc$avg_distance_haversine <- colMeans(DistanceMatrix.Haversine, na.rm=TRUE)
@@ -233,19 +245,19 @@ Just for fun, let's look at the histogram of average distance from each piece of
 qplot(AustinPublicArt.gc$avg_distance_haversine, xlab="miles", ylab="pieces of art", main="Average Distance between Artwork and the Remainder of Collection", geom="histogram", fill=I("orange"))
 ```
 
-The inputs for the `distCosine()` function are the same, and the calculations will be similar for most reasonable distances. We could repeat all of the previous steps with the Spherical Law of Cosines simply by substituting `distCosine()` in for `distHaversine()`. 
+The inputs for the `geosphere::distCosine()` function are the same, and the calculations will be similar for most reasonable distances. We could repeat all of the previous steps with the Spherical Law of Cosines simply by substituting `distCosine()` in for `distHaversine()`. 
 
 ```{r, tidy=TRUE}
 #Input: lat/long coordinates of the 1st and 2nd works of art
 #Output: distance between 1st and 2nd works of art (in miles)
-distCosine(AustinPublicArt.gc[1,9:10],  AustinPublicArt.gc[2,9:10], r = 3959)
+geosphere::distCosine(AustinPublicArt.gc[1,9:10],  AustinPublicArt.gc[2,9:10], r = 3959)
 ```
 
 ## Using the `gmapsdistance` package for travel times and distances based on road networks
 
-Depending on the focus of the spatial analysis, it may be more prudent to incorporate networks of roads and sidewalks to calculate distances or travel times directly rather than "as the crow flies" (the shortest possible distance between two points). With the gmapsdistance package this can be accomplished using the Google Maps API directly in R to utilize Google Maps data to calculate travel distances (output in meters) and times (output in seconds) by a variety of modes (walking, biking, driving, or taking public transportation), at different times of day, and under different traffic conditions ("pessimistic", "optimistic", "best guess"). 
+Depending on the focus of the spatial analysis, it may be more prudent to incorporate networks of roads and sidewalks to calculate distances or travel times directly rather than "as the crow flies" (the shortest possible distance between two points). With the `gmapsdistance` package this can be accomplished using the Google Maps API directly in R to utilize Google Maps data to calculate travel distances (output in meters) and times (output in seconds) by a variety of modes (walking, biking, driving, or taking public transportation), at different times of day, and under different traffic conditions (`"pessimistic", "optimistic", "best guess"`). 
 
-The inputs for the `gmapsdistance()` function are a little different. With this command, the origin and destination can either be named places or pairs of latitude and longitude coordinates of the forms `CITY+STATE` or `LATITUDE+LONGITUDE`, respectively. To simplify the code, I elected to use the `paste()` function to input coordinates in this format without altering the original spatial polygons data frame. 
+The inputs for the `gmapsdistance::gmapsdistance()` function are a little different. With this command, the origin and destination can either be named places or pairs of latitude and longitude coordinates of the forms `CITY+STATE` or `LATITUDE+LONGITUDE`, respectively. To simplify the code, I elected to use the `paste()` function to input coordinates in this format without altering the original spatial polygons data frame. 
 
 ```{r, tidy=TRUE}
 AustinPublicArt.gc[1,9:10] #access one pair of lat/long coordinates from the spatial polygons data frame
@@ -255,7 +267,7 @@ paste(AustinPublicArt.gc[1,10],AustinPublicArt.gc[1,9], sep="+") #reformat this 
 Given what we've observed from the preliminary map of the dispersal of public art in Austin, it could be insightful to incorporate sidewalk and road networks to calculate distances for pedestrians rather than cars (as street art could be more easily enjoyed on foot). Let's begin by calculating the walking distance between the first and second works of art in the dataset. 
 
 ```{r google maps distance, tidy=TRUE}
-gmapsdistance(origin = paste(AustinPublicArt.gc[1,10],AustinPublicArt.gc[1,9], sep="+"), destination = paste(AustinPublicArt.gc[2,10],AustinPublicArt.gc[2,9], sep="+"), mode = "walking")
+gmapsdistance::gmapsdistance(origin = paste(AustinPublicArt.gc[1,10],AustinPublicArt.gc[1,9], sep="+"), destination = paste(AustinPublicArt.gc[2,10],AustinPublicArt.gc[2,9], sep="+"), mode = "walking")
 ```
 
 From this output, we see that there are two accesible objects: the `Time` and `Distance` between the `origin` and `destination`. Recall that `Time` is output in seconds and `Distance` in meters, so you will likely need to convert these. The following are additional function inputs that could be used to get more precise estimates of these: 
@@ -281,7 +293,7 @@ WashingtonDC.shp <- subset(USStates.shp, USStates.shp@data$STATEFP == 11)
 In `ggplot2`, we can plot it using either of the following commands. The first repeats the steps from the Austin, Texas example to `fortify()` the shapefile and then plot the latitude and longitude coordinates as a polygon using `geom_polygon()`. The second is new! Within `ggplot2`, there is a command called `map_data()` that allows you to directly read in common map shapes. We couldn't use this before because we were focusing on a small area, but now would be a fun time to explore it to plot Washington D.C.! 
 
 ```{r, fig.align = "center", message=FALSE, warning=FALSE, tidy=TRUE}
-WashingtonDC.df <- tidy(WashingtonDC.shp, region = "NAME")
+WashingtonDC.df <- broom::tidy(WashingtonDC.shp, region = "NAME")
 WashingtonDC.gg <- subset(map_data("state"), map_data("state")$region == "district of columbia")
 DCShapefile <- ggplot() + geom_polygon(data = WashingtonDC.df, aes(x = long, y = lat, group = group), fill = "white", col="black") + coord_equal(ratio = 1) + theme(axis.text.x=element_blank(), axis.text.y=element_blank(), axis.ticks=element_blank(),axis.title.x=element_blank(),axis.title.y=element_blank()) + north(WashingtonDC.df, location = "topleft") + scalebar(WashingtonDC.df, location = "bottomright", dist = 3, dd2km = TRUE, model = 'WGS84', st.size=2.5)
 
