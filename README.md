@@ -1,8 +1,8 @@
 # Introduction to geocoding, calculating distances, and map-making in `R`
-## Files and datasets for R Ladies tutorial - 12 Sept 2017
-### Sarah Lotspeich
+Files and datasets for R Ladies tutorial - 12 Sept 2017
+Sarah Lotspeich
 
-### A few packages for spatial analysis and visualization in R
+## A few packages for spatial analysis and visualization in R
 
   1.  [`ggmap`](https://cran.r-project.org/web/packages/ggmap/ggmap.pdf): A collection of functions to visualize spatial data and models
 on top of static maps from various online sources (e.g Google Maps and Stamen Maps). It includes tools common to those tasks, including functions for geolocation and routing.
@@ -24,7 +24,7 @@ library(gmapsdistance)
 library(wesanderson)
 ```
 
-#Introduction to geocoding
+# Introduction to geocoding
 
 In geospatial analyses, string addresses hold very little meaning just as in our everyday lives the precise latitude and longitude coordinates of our homes are not all that useful. That's where geocoding comes in. The basis of geocoding is the following (respectfully copy-pasted from Google about their [Google Maps Geocoding API](https://developers.google.com/maps/documentation/geocoding/start)): 
 
@@ -36,7 +36,7 @@ Before we begin, here are a few "best practices" when preparing addresses to be 
   2.  Be mindful of special characters like @, #, ?, ;, -
   3.  Buckle down and be prepared to spend a good long while "cleaning" addresses. I spent two days on my pharmacy addresses. I would highly recommend doing it with a quality latte (or perhaps something stronger) in hand.
 
-##Example 1: [City of Austin Public Art Collection](https://data.austintexas.gov/Fun/City-of-Austin-Public-Art-Collection/yqxj-7evp)
+## Example 1: [City of Austin Public Art Collection](https://data.austintexas.gov/Fun/City-of-Austin-Public-Art-Collection/yqxj-7evp)
 
 *Background:* This file contains the names and address of artworks commissioned through the Austin Art in Public Places Program. Established by the City in 1985, the Art in Public Places (AIPP) program collaborates with local & nationally-known artists to include the history and values of our community into cultural landmarks that have become cornerstones of Austin's identity. The City of Austin was the first municipality in Texas to make a commitment to include works of art in construction projects (taken from [here](http://www.publicartarchive.org/austinaipp)). 
 
@@ -107,7 +107,7 @@ class(UrbanAreasUS.shp)
 
 What the heck is a `spatial polygons data frame`? 
 
-##Classes of spatial data
+## Classes of spatial data
 
   1.  `SpatialPoints`: simply describe locations (with no attributes)
   2.  `SpatialPointsDataFrame`: describes locations + attributes for them
@@ -128,7 +128,7 @@ UrbanAreasUS.shp@data[which(UrbanAreasUS.shp@data$NAME10 == "Austin, TX"),]
 AustinTX.shp <- subset(UrbanAreasUS.shp, UrbanAreasUS.shp@data$NAME10 == "Austin, TX")
 ```
 
-###Spatial data in `ggplot2`
+### Spatial data in `ggplot2`
 
 To map Austin in `ggplot2` we need to use the `tidy()` function in the `broom` package to convert the spatial polygon data frame to a traditional data frame. Previously, the `fortify()` function could be used for this, but this function is likely to become deprecated. 
 
@@ -137,7 +137,7 @@ AustinTX.df <- tidy(AustinTX.shp, region = "NAME10")
 #or AustinTX.df <- fortify(AustinTX.shp, region="NAME10")
 ```
 
-###Creating Maps with `ggplot2`
+### Creating Maps with `ggplot2`
 
 Once the shapefile has been formatted appropriately, we can utilize our knowledge of the "grammar of graphics" to map the urban area for Austin, TX. Begin with the `geom_polygon()` function to plot the latitude and longitude coordinates for the outline of the Austin, TX urban area (`aes(x = long, y = lat)`) and use `group = group` in your aesthetic to tell `ggplot2` to treat this area as one polygon. Feel free to select your own `fill` color, and outline color, `col`. 
 
@@ -174,7 +174,7 @@ to remove the x and y axis titles, tick lines, and values.
 (AustinTX.map <- AustinTX.map + theme(axis.text.x=element_blank(), axis.text.y=element_blank(), axis.ticks=element_blank(),axis.title.x=element_blank(),axis.title.y=element_blank()))
 ```
 
-##Map of the City of Austin's Public Art Collection 
+## Map of the City of Austin's Public Art Collection 
 
 Now we can begin with our base map from above, and overlay it with the locations of works of street art! We can use the `geom_point()` function with the latitude and longitude coordinates and the original `AustinPublicArt` data frame. 
 
@@ -186,7 +186,7 @@ From the map above, we should be able to make some preliminary observations abou
 
 How about estimating the average distance between works of art as a gauge of availability/ accessibility? 
 
-#Calculating distances between places on a map
+# Calculating distances between places on a map
 
 When we think about distances traveled, how do we measure them? 
 
@@ -262,7 +262,7 @@ From this output, we see that there are two accesible objects: the `Time` and `D
   - `avoid`: when the `mode = "driving"`, we can specify routes avoiding `"tolls"`, `"highways"`, `"ferries"`, and `"indoor"` segments. 
   - `traffic model`: when the `mode = "driving"`, we can specify the anticipated level of traffic using `"optimistic"`, `"pessimistic"`, or `"best_guess"`. 
 
-##Example 2: [Places of Worship](http://opendata.dc.gov/datasets/b134de8f8eaa49499715a38ba97673c8_5)
+## Example 2: [Places of Worship](http://opendata.dc.gov/datasets/b134de8f8eaa49499715a38ba97673c8_5)
 
 *Background:* The dataset contains locations and attributes of Places of Worship, created as part of the DC Geographic Information System (DC GIS) for the D.C. Office of the Chief Technology Officer (OCTO) and participating D.C. government agencies. Information provided by various sources identified Places of Worship such as churches and faith based organizations. DC GIS staff geo-processed this data from a variety of sources.
 
@@ -294,7 +294,7 @@ grid.arrange(DCShapefile + ggtitle("From US Census"), DCMapData + ggtitle("From 
 
 Personally, I prefer the precision of the shapefile to that of the `map_data()` plot. But for maps of larger areas (i.e. all of the states) this is definitely a great option!
 
-##Mapping location and attributes together
+## Mapping location and attributes together
 
 To illustrate incorporating attributes with spatial data, we will be creating a map of the places of worship in Washington, D.C. where the religion of each location can be identified from the unique color. To do so, instead of setting the `col` for the `geom_point()` statement we set `col = religion`. I was not a huge fan of the automatic color scheme, so I used `scale_color_manual()` with `values` from the `wesanderson` package color scheme `"Fantastic Fox"`. 
 
@@ -308,7 +308,7 @@ With a majority Christian locations, I elected to create a map with only non-Chr
 (PlacesOfWorship.map <- DCShapefile + geom_point(data = PlacesOfWorship.df[which(PlacesOfWorship.df$religion != "CHRISTIAN"),], aes(x = longitude, y = latitude, col=religion)) + scale_color_manual(values=wes_palette(n=5, name="FantasticFox")))
 ```
 
-#Example 3: [Claim-Based Medicare Spending by State](https://data.world/dartmouthatlas/claims-based-medicare-spending-by-state-level)
+# Example 3: [Claim-Based Medicare Spending by State](https://data.world/dartmouthatlas/claims-based-medicare-spending-by-state-level)
 
 Claims-based Medicare spending: Price, age, sex and race-adjusted (20% sample for 2003-09: 100% sample for 2010-13). Dartmouth Atlas data have been used for many years to compare utilization and expenditures across hospital referral regions (HRRs). 
 
